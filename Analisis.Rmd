@@ -1,0 +1,11 @@
+---
+title: "Analisis"
+author: "Aaron Montero Chinchilla B54584"
+date: "10/10/2020"
+output: html_document
+---
+
+```{r}
+print("hola")
+```
+
