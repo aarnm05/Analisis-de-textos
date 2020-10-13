@@ -1,0 +1,55 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+library(dplyr)
+library(tidytext)
+library(hunspell)
+library(readxl)
+hunspell::list_dictionaries()
+
+
+dictionary(lang = "es_ES")
+dict.esp <- dictionary("es_ES")
+
+dataset <- read_excel("Sortone/OneDrive/U/Encuestas/PreguntaAbierta/dataset.xlsx")
+
+custom_stop= data_frame(word = tm::stopwords("spanish"), #podemos hacerlo así
+                                          lexicon = "custom")
+
+kk = data.frame(participant =1:nrow(dataset) ,word = dataset$P1COM)
+df_text <- kk %>% 
+    unnest_tokens(input = "word",output = "word")
+
+df_text2 = df_text %>%
+  anti_join(custom_stop)  #elimina las palabras que coincidan dentro del registro de stopwords
+  
+ele = df_text2 %>% 
+  group_by(participant) %>% 
+  count(word,sort = T) 
+
+```
+
+
+
+
+```{r}
+
+
+```
+
+
+```{r}
+library(tidyr)
+library(dplyr)
+#df_text2 %>% 
+ # pivot_wider(id_cols = participant)
+
+
+elle = ele %>% 
+  pivot_wider(id_cols = participant,names_from= word,values_from= n)
+```
+
