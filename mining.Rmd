@@ -11,11 +11,37 @@ library(hunspell)
 library(readxl)
 hunspell::list_dictionaries()
 
+espa=dictionary("C:/Users/emirr/Documents/Sortone/OneDrive/Git/Analisis-de-textos/mex/es_MX.dic")
+costa = dictionary("C:/Users/emirr/Documents/Sortone/OneDrive/Git/Analisis-de-textos/costa/es_cr.dic")
+cast = dictionary("C:/Users/emirr/Documents/Sortone/OneDrive/Git/Analisis-de-textos/cast/es_ES.dic")
 
-dictionary(lang = "es_ES")
-dict.esp <- dictionary("es_ES")
+dataset <- read_excel("dataset.xlsx")
 
-dataset <- read_excel("Sortone/OneDrive/U/Encuestas/PreguntaAbierta/dataset.xlsx")
+k = hunspell(dataset$P1COM,dict = costa)
+
+
+#cleantext function as defined by boski
+#https://stackoverflow.com/questions/56026550/how-to-use-hunspell-package-to-suggest-correct-words-in-a-column-in-r
+
+cleantext = function(x) {
+  
+  sapply(1:length(x), function(y) {
+    bad = hunspell(x[y], dict = costa)[[1]]
+    good = unlist(lapply(hunspell_suggest(bad,dict = costa), `[[`, 1))
+    
+    if (length(bad)) {
+      for (i in 1:length(bad)) {
+        x[y] <<- gsub(bad[i], good[i], x[y])
+      }
+    }
+  })
+  x
+}
+
+cleantext(dataset$P1COM[2])
+
+
+
 
 custom_stop= data_frame(word = tm::stopwords("spanish"), #podemos hacerlo así
                                           lexicon = "custom")
@@ -30,14 +56,6 @@ df_text2 = df_text %>%
 ele = df_text2 %>% 
   group_by(participant) %>% 
   count(word,sort = T) 
-
-```
-
-
-
-
-```{r}
-
 
 ```
 
