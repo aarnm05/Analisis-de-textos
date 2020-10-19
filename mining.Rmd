@@ -9,15 +9,19 @@ library(dplyr)
 library(tidytext)
 library(hunspell)
 library(readxl)
+library(tidytext)
+library(SnowballC)
+
 hunspell::list_dictionaries()
 
+#modifiquen esto a conveniencia, en mi git estan esos diccionarios
 espa=dictionary("C:/Users/emirr/Documents/Sortone/OneDrive/Git/Analisis-de-textos/mex/es_MX.dic")
 costa = dictionary("C:/Users/emirr/Documents/Sortone/OneDrive/Git/Analisis-de-textos/costa/es_cr.dic")
 cast = dictionary("C:/Users/emirr/Documents/Sortone/OneDrive/Git/Analisis-de-textos/cast/es_ES.dic")
 
-dataset <- read_excel("dataset.xlsx")
+dataset <- read_excel("dataset.xlsx") #mi dataset 
 
-k = hunspell(dataset$P1COM,dict = costa)
+k = hunspell(dataset$P1COM,dict = costa) #prueba de como funciona hunspeell
 
 
 #cleantext function as defined by boski
@@ -38,36 +42,50 @@ cleantext = function(x) {
   x
 }
 
-cleantext(dataset$P1COM[2])
+cleantext(dataset$P1COM[2]) ; dataset$P1COM[2] #cambia deceos por deceso.
+
+ana = data.frame(texto= sapply(X =dataset$P1COM[1:31],cleantext,USE.NAMES = F),
+                 id = 1:31
+                 ) #evaluacion por filas; es decir para cada variable. Me produce un vector del mismo tamaño del vector inicial con el texto limpio. Al mismo tiempo es un data.frame cuyo nombre de columna es word. Por convencion
+
+```
 
 
 
+```{r}
 
 custom_stop= data_frame(word = tm::stopwords("spanish"), #podemos hacerlo así
                                           lexicon = "custom")
 
-kk = data.frame(participant =1:nrow(dataset) ,word = dataset$P1COM)
-df_text <- kk %>% 
-    unnest_tokens(input = "word",output = "word")
-
-df_text2 = df_text %>%
-  anti_join(custom_stop)  #elimina las palabras que coincidan dentro del registro de stopwords
+gato = ana %>% 
+  unnest_tokens(word, texto) %>%  #en este paso separamos las palabras individualmente
+  anti_join(custom_stop)   #elimina las palabras que coincidan dentro del registro de stopwords
   
-ele = df_text2 %>% 
-  group_by(participant) %>% 
+#gato tiene las palabras sin lematizar separadas, gato sirve para casos donde no queremos lematizar
+
+frec_simple = gato %>% #frecuencias de las palabras sin lematizar 
+  group_by(id) %>% 
   count(word,sort = T) 
 
-```
+#aqui podria ir un poco de regex
 
+
+#lematizacion 
+
+lema = select(gato,"word") %>%  #necesita un poco de trabajo todavia
+  SnowballC::wordStem(language = "spanish")
+
+```
 
 ```{r}
-library(tidyr)
-library(dplyr)
-#df_text2 %>% 
- # pivot_wider(id_cols = participant)
-
-
-elle = ele %>% 
-  pivot_wider(id_cols = participant,names_from= word,values_from= n)
+matriz = frec_simple %>%  #me produce la matriz que uso felipe, por el momento no se necesita
+  pivot_wider(id_cols = id,names_from= word,values_from= n)
 ```
 
+Pendiente:
+
+Graficos(Emir puede subir una muestra o enseñarles varios)
+Tablas
+terminar Lematizacion
+Agregar patrones regex y reemplazos para no distinguir tildes
+probar el codigo con la base de prueba
