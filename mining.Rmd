@@ -22,7 +22,7 @@ cast = dictionary("C:/Users/emirr/Documents/Sortone/OneDrive/Git/Analisis-de-tex
 
 dataset <- foreign::read.spss("PILOTO.sav",to.data.frame = T) #mi dataset 
 
-otro  = str_trim(dataset$FU6B) #le quitamos los espacios de mas 
+otro  = str_trim(dataset$PR10B) #le quitamos los espacios de mas 
 otro = otro[otro!=""] #quitamos las variables vacias basicamente
 
 otro #podemos ver que hay problemas por el !.
@@ -62,18 +62,11 @@ remove(ar)
 
 otro1 = str_replace_all(otro,"\\!", replacement = "e") #puede que no les funcione dependiendo de su version de R. En ese caso tendrían que borrarle un backslash.
 
-cleantext(otro1)
+otro1 = cleantext(otro1)
 
 #fin de plan de contingencia
 
-
-
-
-cleantext(dataset$P1COM[2]) ; dataset$P1COM[2] #cambia deceos por deceso.
-
-ana = data.frame(texto= sapply(X =dataset$P1COM[1:31],cleantext,USE.NAMES = F),
-                 id = 1:31
-                 ) #evaluacion por filas; es decir para cada variable. Me produce un vector del mismo tamaño del vector inicial con el texto limpio. Al mismo tiempo es un data.frame cuyo nombre de columna es word. Por convencion
+ana = data.frame(texto = otro1, id = 1:length(otro1))
 
 ```
 
@@ -90,10 +83,39 @@ gato = ana %>%
   
 #gato tiene las palabras sin lematizar separadas, gato sirve para casos donde no queremos lematizar
 
-frec_simple = gato %>% #frecuencias de las palabras sin lematizar 
-  group_by(id) %>% 
+frec_persona = gato %>% #frecuencias de las palabras sin lematizar 
+  group_by(id) %>% #si quisieramos por persona para controlar si alguien dijo muchas veces una palabra
   count(word,sort = T) 
 
+frec_simple=gato %>% #frecuencias de las palabras sin lematizar 
+  count(word,sort = T) 
+
+frec_res = frec_simple[1:15,]
+
+```
+
+
+
+```{r}
+library(ggplot2)
+ggplot(data = frec_res,aes(x= reorder(word,n) ,y =n))+
+  geom_point(color="blue")+
+  geom_segment(
+    aes(x=word,xend=word,y=0,yend=n),color="skyblue3")+
+  theme(axis.text.y = element_text(angle = 30,size=8,hjust=1))+
+  coord_flip()+
+  xlab("")+
+  theme_light()
+
+#en este caso tenemos un grafico muy aburrido porque todas tienen la misma frecuencia porque el tamaño es muy pequeño
+
+```
+
+
+
+
+
+```{r}
 #aqui podria ir un poco de regex
 
 
@@ -103,6 +125,13 @@ lema = select(gato,"word") %>%  #necesita un poco de trabajo todavia
   SnowballC::wordStem(language = "spanish")
 
 ```
+
+
+
+
+
+
+
 
 ```{r}
 matriz = frec_simple %>%  #me produce la matriz que uso felipe, por el momento no se necesita
