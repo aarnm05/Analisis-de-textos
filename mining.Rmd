@@ -15,6 +15,7 @@ library(stringr)
 
 hunspell::list_dictionaries()
 
+hunspell::dictionary("C:/Users/emirr/Documents/Sortone/OneDrive/Git/Analisis-de-textos/costa/es_cr.dic")
 #modifiquen esto a conveniencia, en mi git estan esos diccionarios
 espa=dictionary("C:/Users/emirr/Documents/Sortone/OneDrive/Git/Analisis-de-textos/mex/es_MX.dic")
 costa = dictionary("C:/Users/emirr/Documents/Sortone/OneDrive/Git/Analisis-de-textos/costa/es_cr.dic")
@@ -72,6 +73,8 @@ ana = data.frame(texto = otro1, id = 1:length(otro1))
 
 
 
+#Stopwords
+
 ```{r}
 
 custom_stop= data_frame(word = tm::stopwords("spanish"), #podemos hacerlo así
@@ -112,26 +115,29 @@ ggplot(data = frec_res,aes(x= reorder(word,n) ,y =n))+
 ```
 
 
-
+## Lematizacion
 
 
 ```{r}
 #aqui podria ir un poco de regex
 
+SnowballC::wordStem(language = "spanish",words = gato$word[1:10]) #no es muy util, toma muy literal lo de la raiz
+hunspell_stem(words = gato$word[1:10], dict = costa)
 
-#lematizacion 
+lema = gato %>% 
+  mutate(lemas =hunspell_stem(words = word,dict = costa) )
 
-lema = select(gato,"word") %>%  #necesita un poco de trabajo todavia
-  SnowballC::wordStem(language = "spanish")
+x= hunspell_stem(words = gato$word[1:4],dict = costa)
+
+
+A = lapply(x, `[[`, 1) %>% 
+  data.frame() %>% t()
 
 ```
 
 
 
-
-
-
-
+#Matriz palabra conteo
 
 ```{r}
 matriz = frec_simple %>%  #me produce la matriz que uso felipe, por el momento no se necesita
@@ -140,8 +146,8 @@ matriz = frec_simple %>%  #me produce la matriz que uso felipe, por el momento n
 
 Pendiente:
 
-Graficos(Emir puede subir una muestra o enseñarles varios)
+Graficos(Emir puede subir una muestra o enseñarles varios) (listo)
 Tablas
 terminar Lematizacion
-Agregar patrones regex y reemplazos para no distinguir tildes
+Agregar patrones regex y reemplazos para no distinguir tildes 
 probar el codigo con la base de prueba
