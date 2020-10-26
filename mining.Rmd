@@ -26,7 +26,7 @@ dataset <- foreign::read.spss("PILOTO.sav",to.data.frame = T) #mi dataset
 otro  = str_trim(dataset$PR10B) #le quitamos los espacios de mas 
 otro = otro[otro!=""] #quitamos las variables vacias basicamente
 
-otro #podemos ver que hay problemas por el !.
+#otro #podemos ver que hay problemas por el !.
 
 hunspell(otro,dict = costa) #prueba de como funciona hunspell
 
@@ -53,7 +53,6 @@ cleantext = function(x) {
 
 #ejemplo
 ar= str_replace("nataci!n","\\!",replacement = "e") #basicamente vamos a hacer esto, reemplazar el signo de exclamacion por una vocal
-ar
 cleantext(ar)
 remove(ar)
 #fin del ejemplo
@@ -124,16 +123,42 @@ ggplot(data = frec_res,aes(x= reorder(word,n) ,y =n))+
 SnowballC::wordStem(language = "spanish",words = gato$word[1:10]) #no es muy util, toma muy literal lo de la raiz
 hunspell_stem(words = gato$word[1:10], dict = costa)
 
-lema = gato %>% 
-  mutate(lemas =hunspell_stem(words = word,dict = costa) )
+x = hunspell_stem(words = gato$word,dict = costa) #lematizacion
 
-x= hunspell_stem(words = gato$word[1:4],dict = costa)
+vacios = which(lapply(x, length) == 0)
 
+gato = gato[-vacios,] #las palabras divididas le quito los terminos no reconocidos #en este caso un numero
+x = x[-vacios]
 
-A = lapply(x, `[[`, 1) %>% 
-  data.frame() %>% t()
+gato$lema = lapply(x, `[[`, 1) %>% as.character()
+
+#ahora gato tiene una variable adicional que se llama lema
 
 ```
+
+
+#grafico palabras lematizadas
+
+
+```{r}
+#omito la frecuencia por persona porque no se usa para el grafico siguiente
+
+frec_simple_l=gato %>% #frecuencias de las palabras sin lematizar 
+  count(lema,sort = T) 
+
+frec_res_l = frec_simple_l[1:15,]
+
+ggplot(data = frec_res_l,aes(x= reorder(lema,n) ,y =n))+
+  geom_point(color="blue")+
+  geom_segment(
+    aes(x=lema,xend=lema,y=0,yend=n),color="skyblue3")+ #cuidado, veamos que x y xend ahora son lema
+  theme(axis.text.y = element_text(angle = 30,size=8,hjust=1))+
+  coord_flip()+
+  xlab("")+
+  theme_light()
+```
+
+
 
 
 
