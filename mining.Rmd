@@ -3,7 +3,7 @@ title: "R Notebook"
 output: html_notebook
 ---
 
-
+#cargar datos
 ```{r}
 library(dplyr)
 library(tidytext)
@@ -23,12 +23,6 @@ cast = dictionary("C:/Users/emirr/Documents/Sortone/OneDrive/Git/Analisis-de-tex
 
 dataset <- foreign::read.spss("PILOTO.sav",to.data.frame = T) #mi dataset 
 
-otro  = str_trim(dataset$PR10B) #le quitamos los espacios de mas 
-otro = otro[otro!=""] #quitamos las variables vacias basicamente
-
-#otro #podemos ver que hay problemas por el !.
-
-hunspell(otro,dict = costa) #prueba de como funciona hunspell
 
 #adaptado del siguiente codigo 
 #https://stackoverflow.com/questions/56026550/how-to-use-hunspell-package-to-suggest-correct-words-in-a-column-in-r
@@ -47,19 +41,21 @@ cleantext = function(x) {
   })
   x
 }
- 
+```
 
-#plan de contingencia
+#separar palabras
 
+```{r}
 #ejemplo
 ar= str_replace("nataci!n","\\!",replacement = "e") #basicamente vamos a hacer esto, reemplazar el signo de exclamacion por una vocal
 cleantext(ar)
 remove(ar)
-#fin del ejemplo
+#fin del ejemplo y plan de contingencia
 
 #hacemos esto porque la funcion toma un signo de exclamacion como el fin de una oracion (de forma correcta segun el español); consecuentemente lo va a tomar como si fuera dos palabras.
 
-
+otro  = str_trim(dataset$PR10B) #le quitamos los espacios de mas 
+otro = otro[otro!=""] #quitamos las variables vacias basicamente
 otro1 = str_replace_all(otro,"\\!", replacement = "e") #puede que no les funcione dependiendo de su version de R. En ese caso tendrían que borrarle un backslash.
 
 otro1 = cleantext(otro1)
@@ -69,6 +65,7 @@ otro1 = cleantext(otro1)
 ana = data.frame(texto = otro1, id = 1:length(otro1))
 
 ```
+
 
 
 
@@ -97,7 +94,7 @@ frec_res = frec_simple[1:15,]
 ```
 
 
-
+#grafico 1
 ```{r}
 library(ggplot2)
 ggplot(data = frec_res,aes(x= reorder(word,n) ,y =n))+
@@ -115,7 +112,6 @@ ggplot(data = frec_res,aes(x= reorder(word,n) ,y =n))+
 
 
 ## Lematizacion
-
 
 ```{r}
 #aqui podria ir un poco de regex
