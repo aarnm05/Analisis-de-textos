@@ -108,7 +108,7 @@ ggplot(data = frec_res,aes(x= reorder(word,n) ,y =n))+
   xlab("")+
   theme_light()+
   labs(title = "Temas principales en las respuestas de los participantes",
-  subtitle = "Grafico de frecuencia por palabra, pregunta ?",
+  subtitle = "Grafico de frecuencia por palabra, sin lematizar",
   y = "Cantidad")+
   #scale_x_discrete(breaks = NULL)+
   theme(plot.title = element_text( hjust = 0.5),
@@ -164,7 +164,7 @@ ggplot(data = frec_res_l,aes(x= reorder(lema,n) ,y =n))+
   xlab("")+
   theme_light()+
   labs(title = "Temas principales en las respuestas de los participantes",
-  subtitle = "Grafico de frecuencia por palabra, pregunta ?",
+  subtitle = "Grafico de frecuencia por palabra, lematizado",
   y = "Cantidad")+
   #scale_x_discrete(breaks = NULL)+
   theme(plot.title = element_text( hjust = 0.5),
