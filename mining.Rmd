@@ -12,14 +12,16 @@ library(readxl)
 library(tidytext)
 library(SnowballC)
 library(stringr)
+setwd("~/GitHub/Analisis-de-textos")
 
 hunspell::list_dictionaries()
 
-hunspell::dictionary("C:/Users/emirr/Documents/Sortone/OneDrive/Git/Analisis-de-textos/costa/es_cr.dic")
+
+hunspell::dictionary("costa/es_cr.dic")
 #modifiquen esto a conveniencia, en mi git estan esos diccionarios
-espa=dictionary("C:/Users/emirr/Documents/Sortone/OneDrive/Git/Analisis-de-textos/mex/es_MX.dic")
-costa = dictionary("C:/Users/emirr/Documents/Sortone/OneDrive/Git/Analisis-de-textos/costa/es_cr.dic")
-cast = dictionary("C:/Users/emirr/Documents/Sortone/OneDrive/Git/Analisis-de-textos/cast/es_ES.dic")
+espa=dictionary("mex/es_MX.dic")
+costa = dictionary("costa/es_cr.dic")
+cast = dictionary("cast/es_ES.dic")
 
 dataset <- foreign::read.spss("PILOTO.sav",to.data.frame = T) #mi dataset 
 
@@ -104,7 +106,16 @@ ggplot(data = frec_res,aes(x= reorder(word,n) ,y =n))+
   theme(axis.text.y = element_text(angle = 30,size=8,hjust=1))+
   coord_flip()+
   xlab("")+
-  theme_light()
+  theme_light()+
+  labs(title = "Temas principales en las respuestas de los participantes",
+  subtitle = "Grafico de frecuencia por palabra, pregunta ?",
+  y = "Cantidad")+
+  #scale_x_discrete(breaks = NULL)+
+  theme(plot.title = element_text( hjust = 0.5),
+        plot.subtitle = element_text( hjust = 0.5),
+        panel.grid.major.y = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank())
 
 #en este caso tenemos un grafico muy aburrido porque todas tienen la misma frecuencia porque el tamaño es muy pequeño
 
@@ -151,11 +162,20 @@ ggplot(data = frec_res_l,aes(x= reorder(lema,n) ,y =n))+
   theme(axis.text.y = element_text(angle = 30,size=8,hjust=1))+
   coord_flip()+
   xlab("")+
-  theme_light()
+  theme_light()+
+  labs(title = "Temas principales en las respuestas de los participantes",
+  subtitle = "Grafico de frecuencia por palabra, pregunta ?",
+  y = "Cantidad")+
+  #scale_x_discrete(breaks = NULL)+
+  theme(plot.title = element_text( hjust = 0.5),
+        plot.subtitle = element_text( hjust = 0.5),
+        panel.grid.major.y = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank())
 ```
 
 
-
+ 
 
 
 #Matriz palabra conteo
