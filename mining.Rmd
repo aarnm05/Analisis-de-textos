@@ -3,7 +3,7 @@ title: "R Notebook"
 output: html_notebook
 ---
 
-#cargar datos
+#cargar y preparar datos
 ```{r}
 library(dplyr)
 library(tidytext)
@@ -12,19 +12,20 @@ library(readxl)
 library(tidytext)
 library(SnowballC)
 library(stringr)
-setwd("~/GitHub/Analisis-de-textos")
+library(ggplot2)
 
-hunspell::list_dictionaries()
-
+#setwd("~/GitHub/Analisis-de-textos")
 
 hunspell::dictionary("costa/es_cr.dic")
-#modifiquen esto a conveniencia, en mi git estan esos diccionarios
+#modifiquen esto a conveniencia, en mi git estan esos diccionarios. Fernando me preguntó por qué había tantos diccionarios. Es solo para probar
 espa=dictionary("mex/es_MX.dic")
 costa = dictionary("costa/es_cr.dic")
 cast = dictionary("cast/es_ES.dic")
 
-dataset <- foreign::read.spss("PILOTO.sav",to.data.frame = T) #mi dataset 
+custom_stop= data_frame(word = tm::stopwords("spanish"), #stopwords
+                                          lexicon = "custom") #el nombre que le vamos a poner
 
+dataset <- foreign::read.spss("Actualidades.sav",to.data.frame = T) #alternativamente en la carpeta está el csv, entonces pueden usar ese si no les funciona
 
 #adaptado del siguiente codigo 
 #https://stackoverflow.com/questions/56026550/how-to-use-hunspell-package-to-suggest-correct-words-in-a-column-in-r
@@ -45,61 +46,39 @@ cleantext = function(x) {
 }
 ```
 
-#separar palabras
+#Definimos nuestras funciones
 
 ```{r}
-#ejemplo
-ar= str_replace("nataci!n","\\!",replacement = "e") #basicamente vamos a hacer esto, reemplazar el signo de exclamacion por una vocal
-cleantext(ar)
-remove(ar)
-#fin del ejemplo y plan de contingencia
+#ya no tenemos el problema de los signos de exclamación a la mitad. Entonces no nos vamos a preocupar por esto
 
-#hacemos esto porque la funcion toma un signo de exclamacion como el fin de una oracion (de forma correcta segun el español); consecuentemente lo va a tomar como si fuera dos palabras.
-
-otro  = str_trim(dataset$PR10B) #le quitamos los espacios de mas 
-otro = otro[otro!=""] #quitamos las variables vacias basicamente
-otro1 = str_replace_all(otro,"\\!", replacement = "e") #puede que no les funcione dependiendo de su version de R. En ese caso tendrían que borrarle un backslash.
-
-otro1 = cleantext(otro1)
-
-#fin de plan de contingencia
-
-ana = data.frame(texto = otro1, id = 1:length(otro1))
-
-```
-
-
-
-
-#Stopwords
-
-```{r}
-
-custom_stop= data_frame(word = tm::stopwords("spanish"), #podemos hacerlo así
-                                          lexicon = "custom")
-
-gato = ana %>% 
-  unnest_tokens(word, texto) %>%  #en este paso separamos las palabras individualmente
-  anti_join(custom_stop)   #elimina las palabras que coincidan dentro del registro de stopwords
+procesador_texto= function(x) {
+  otro  = str_trim(x) #le quitamos los espacios de mas
+  otro = otro[otro != ""] #quitamos las variables vacias basicamente
   
-#gato tiene las palabras sin lematizar separadas, gato sirve para casos donde no queremos lematizar
+  otro1 = cleantext(otro)
+  #View(cbind(otro,otro1)) #por si quieren comparar los resultados
+  
+  ana = data.frame(texto = otro1, id = 1:length(otro1)) #si quisieramos podriamos conservar el id original del cuestionario. Para esto seleccionariamos las dos columnas y luego le haríamos un mutate o algo similar
+  
+  # Stopwords--------------------
+  
+  gato = ana %>%
+    unnest_tokens(word, texto) %>%  #en este paso separamos las palabras individualmente
+    anti_join(custom_stop)   #elimina las palabras que coincidan dentro del registro de stopwords
+  
+#vamos a agregar como una columna adicional las palabras lematizadas
 
-frec_persona = gato %>% #frecuencias de las palabras sin lematizar 
-  group_by(id) %>% #si quisieramos por persona para controlar si alguien dijo muchas veces una palabra
-  count(word,sort = T) 
+  z = hunspell_stem(words = gato$word,dict = costa) #lematizacion
+  vacios = which(lapply(z, length) == 0)
+  gato = gato[-vacios,] #las palabras divididas le quito los terminos no reconocidos #en este caso un numero
+  z = z[-vacios]
+  gato$lema = lapply(z, `[[`, 1) %>% as.character()
+  
+  gato
+}
 
-frec_simple=gato %>% #frecuencias de las palabras sin lematizar 
-  count(word,sort = T) 
-
-frec_res = frec_simple[1:15,]
-
-```
-
-
-#grafico 1
-```{r}
-library(ggplot2)
-ggplot(data = frec_res,aes(x= reorder(word,n) ,y =n))+
+grafico_palabras = function(a,titulo,subtitulo){
+  ggplot(data = a,aes(x= reorder(word,n) ,y =n))+
   geom_point(color="blue")+
   geom_segment(
     aes(x=word,xend=word,y=0,yend=n),color="skyblue3")+
@@ -107,75 +86,40 @@ ggplot(data = frec_res,aes(x= reorder(word,n) ,y =n))+
   coord_flip()+
   xlab("")+
   theme_light()+
-  labs(title = "Temas principales en las respuestas de los participantes",
-  subtitle = "Grafico de frecuencia por palabra, sin lematizar",
+  labs(title = titulo,
+  subtitle = subtitulo,
   y = "Cantidad")+
-  #scale_x_discrete(breaks = NULL)+
   theme(plot.title = element_text( hjust = 0.5),
         plot.subtitle = element_text( hjust = 0.5),
         panel.grid.major.y = element_blank(),
         panel.border = element_blank(),
         axis.ticks.y = element_blank())
-
-#en este caso tenemos un grafico muy aburrido porque todas tienen la misma frecuencia porque el tamaño es muy pequeño
+}
 
 ```
 
+Hago los gráficos aparte de la función porque para lematizar vamos a necesitar la lista de palabras
 
-## Lematizacion
-
+#grafico 1
 ```{r}
-#aqui podria ir un poco de regex
+ala = procesador_texto(dataset$PR10B)
 
-SnowballC::wordStem(language = "spanish",words = gato$word[1:10]) #no es muy util, toma muy literal lo de la raiz
-hunspell_stem(words = gato$word[1:10], dict = costa)
+frec_simple = ala %>% #frecuencias de las palabras lematizadas
+    count(word, sort = T)
+  
+frec_lema = ala %>% 
+  count(lema,sort = T )
 
-x = hunspell_stem(words = gato$word,dict = costa) #lematizacion
+colnames(frec_lema) = c("word","n")
 
-vacios = which(lapply(x, length) == 0)
+frec_simple15 = frec_simple[1:15,]
+frec_lema15 = frec_lema[1:15,]
 
-gato = gato[-vacios,] #las palabras divididas le quito los terminos no reconocidos #en este caso un numero
-x = x[-vacios]
+grafico_palabras(frec_simple15,"Temas principales en las respuestas de los participantes","Grafico de frecuencia por palabra, sin lematizar")
 
-gato$lema = lapply(x, `[[`, 1) %>% as.character()
-
-#ahora gato tiene una variable adicional que se llama lema
+grafico_palabras(frec_lema15,"Temas principales en las respuestas de los participantes","Grafico de frecuencia por palabra, lematizado")
 
 ```
-
-
-#grafico palabras lematizadas
-
-
-```{r}
-#omito la frecuencia por persona porque no se usa para el grafico siguiente
-
-frec_simple_l=gato %>% #frecuencias de las palabras sin lematizar 
-  count(lema,sort = T) 
-
-frec_res_l = frec_simple_l[1:15,]
-
-ggplot(data = frec_res_l,aes(x= reorder(lema,n) ,y =n))+
-  geom_point(color="blue")+
-  geom_segment(
-    aes(x=lema,xend=lema,y=0,yend=n),color="skyblue3")+ #cuidado, veamos que x y xend ahora son lema
-  theme(axis.text.y = element_text(angle = 30,size=8,hjust=1))+
-  coord_flip()+
-  xlab("")+
-  theme_light()+
-  labs(title = "Temas principales en las respuestas de los participantes",
-  subtitle = "Grafico de frecuencia por palabra, lematizado",
-  y = "Cantidad")+
-  #scale_x_discrete(breaks = NULL)+
-  theme(plot.title = element_text( hjust = 0.5),
-        plot.subtitle = element_text( hjust = 0.5),
-        panel.grid.major.y = element_blank(),
-        panel.border = element_blank(),
-        axis.ticks.y = element_blank())
-```
-
-
- 
 
 
 #Matriz palabra conteo
@@ -187,8 +131,10 @@ matriz = frec_simple %>%  #me produce la matriz que uso felipe, por el momento n
 
 Pendiente:
 
-Graficos(Emir puede subir una muestra o enseñarles varios) (listo)
-Tablas
-terminar Lematizacion
-Agregar patrones regex y reemplazos para no distinguir tildes 
-probar el codigo con la base de prueba
++ Graficos (añadir más)
+terminar Lematizacion (listo; emir)
+Agregar patrones regex y reemplazos para no distinguir tildes  (listo, mediante corrector; emir)
+probar el codigo con la base de prueba (listo)
+
+Bigramas
+Añadir token "no" antes de expresiones de negación
