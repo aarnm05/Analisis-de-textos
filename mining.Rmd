@@ -137,15 +137,19 @@ matriz = frec_simple %>%  #me produce la matriz que uso felipe, por el momento n
 ```{r posibles cambios a los bigramas de tesis}
 x = "la variable que usemos" #cambiar esto por la variable real a usar
 corpus <- VCorpus( VectorSource( x))
+
 #crear bigramas
 Our_bigram = corpus %>%
   unnest_tokens(bigram, text, token = "ngrams", n = 2)
+
 #contar los bigramas
-Our_bigram_count = austen_bigrams %>%
+Our_bigram_count = Our_bigram %>%
   count(bigram, sort = TRUE)
+
 #Separar bigramas para filtrarlos
 bigramas_separados = Our_bigram %>% 
   separate( bigram, c("word1", "word2"), sep = " ")
+
 #bigramas con la palabra "no"
 bigramas_con_no = bigramas_separados %>%
   filter(word1 == "no") %>%
@@ -161,6 +165,7 @@ probar el codigo con la base de prueba (listo)
 
 +Bigramas
 Añadir token "no" antes de expresiones de negación  falta
+Falta hacer graficos para Our_bigram_count y bigramas_con_no
 
 
 +Red de correlaciones
