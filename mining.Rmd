@@ -13,8 +13,9 @@ library(tidytext)
 library(SnowballC)
 library(stringr)
 library(ggplot2)
+library( tidyr)
 
-#setwd("~/GitHub/Analisis-de-textos")
+setwd("~/GitHub/Analisis-de-textos")
 
 hunspell::dictionary("costa/es_cr.dic")
 #modifiquen esto a conveniencia, en mi git estan esos diccionarios. Fernando me preguntó por qué había tantos diccionarios. Es solo para probar
@@ -129,6 +130,28 @@ matriz = frec_simple %>%  #me produce la matriz que uso felipe, por el momento n
   pivot_wider(id_cols = id,names_from= word,values_from= n)
 ```
 
+
+
+
+
+```{r posibles cambios a los bigramas de tesis}
+x = "la variable que usemos" #cambiar esto por la variable real a usar
+corpus <- VCorpus( VectorSource( x))
+#crear bigramas
+Our_bigram = corpus %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2)
+#contar los bigramas
+Our_bigram_count = austen_bigrams %>%
+  count(bigram, sort = TRUE)
+#Separar bigramas para filtrarlos
+bigramas_separados = Our_bigram %>% 
+  separate( bigram, c("word1", "word2"), sep = " ")
+#bigramas con la palabra "no"
+bigramas_con_no = bigramas_separados %>%
+  filter(word1 == "no") %>%
+  count(word1, word2, sort = TRUE)
+```
+
 Pendiente:
 
 + Graficos (añadir más)
@@ -136,5 +159,30 @@ terminar Lematizacion (listo; emir)
 Agregar patrones regex y reemplazos para no distinguir tildes  (listo, mediante corrector; emir)
 probar el codigo con la base de prueba (listo)
 
-Bigramas
-Añadir token "no" antes de expresiones de negación
++Bigramas
+Añadir token "no" antes de expresiones de negación  falta
+
+
++Red de correlaciones
+Si da tiempo armar una de esos
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Bibliografia https://www.tidytextmining.com/ngrams.html
