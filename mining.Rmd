@@ -355,12 +355,12 @@ Agregar patrones regex y reemplazos para no distinguir tildes  (listo, mediante 
 probar el codigo con la base de prueba (listo)
 
 +Bigramas
-Añadir token "no" antes de expresiones de negación  falta
+Añadir token "no" antes de expresiones de negación  falta (no tira bigramas con no)
 Falta hacer graficos para Our_bigram_count y bigramas_con_no
 
 
 +Red de correlaciones
-Si da tiempo armar una de esos
+Si da tiempo armar una de esos (listo)
 
 +pensar en mas stop words
 
