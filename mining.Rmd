@@ -15,7 +15,8 @@ library(stringr)
 library(ggplot2)
 library( tidyr)
 library( tm )
-
+library( ggraph)
+library( igraph)
 setwd("~/GitHub/Analisis-de-textos")
 
 hunspell::dictionary("costa/es_cr.dic")
@@ -80,8 +81,8 @@ procesador_texto= function(x) {
 }
 
 grafico_palabras = function(a,titulo,subtitulo){
-  ggplot(data = a,aes(x= reorder(word,n) ,y =n))+
-  geom_point(color="blue")+
+  ggplot(data = a,aes(x = reorder(word,n) ,y = n))+
+  geom_point(color = "blue")+
   geom_segment(
     aes(x=word,xend=word,y=0,yend=n),color="skyblue3")+
   theme(axis.text.y = element_text(angle = 30,size=8,hjust=1))+
@@ -260,13 +261,22 @@ Our_bigram_count = Our_bigram %>%
   count(bigram, sort = TRUE)
 
 #Separar bigramas para filtrarlos
-bigramas_separados = Our_bigram %>% 
+bigramas_separados = Our_bigram_count %>% 
   separate( bigram, c("word1", "word2"), sep = " ")
 
 #bigramas con la palabra "no"
 bigramas_con_no = bigramas_separados %>%
   filter(word1 == "no") %>%
   count(word1, word2, sort = TRUE)
+
+bigrama_graf = bigramas_separados %>% filter( n > 5) %>%  graph_from_data_frame()#ese 5 es arbitrario
+
+ggraph(bigrama_graf, layout = "fr") +
+  geom_edge_link() +
+  geom_node_point() +
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1)
+  
+
 ```
 
 Pendiente:
