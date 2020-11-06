@@ -270,14 +270,81 @@ bigramas_con_no = bigramas_separados %>%
   count(word1, word2, sort = TRUE)
 
 bigrama_graf = bigramas_separados %>% filter( n > 5) %>%  graph_from_data_frame()#ese 5 es arbitrario
+word_cors <- texto.df %>%
+                      mutate(section = row_number()) %>%
+                      unnest_tokens(word, respuesta, 
+                                    token = "ngrams", 
+                                    n = 1)  %>%
+                      group_by(word) %>%
+                      filter(n() >= 5) %>%
+                      widyr::pairwise_cor(word, section, 
+                                   sort = TRUE)
+
+
+  
+#grafico de la tesis, mas bonito
+word_cors <- texto.df %>%
+                      mutate(section = row_number()) %>%
+                      unnest_tokens(word, respuesta, 
+                                    token = "ngrams", 
+                                    n = 1)  %>%
+                      group_by(word) %>%
+                      filter(n() >= 5) %>%
+                      widyr::pairwise_cor(word, section, 
+                                   sort = TRUE)
+
+
+
+```
+
+```{r graficos bigramas}
 
 ggraph(bigrama_graf, layout = "fr") +
   geom_edge_link() +
   geom_node_point() +
   geom_node_text(aes(label = name), vjust = 1, hjust = 1)
-  
+word_cors %>%
+  filter(correlation >= .25) %>%
+  graph_from_data_frame() %>%
+  ggraph(layout = "fr") +
+  geom_edge_link(aes(#edge_alpha = correlation, 
+                     edge_width = correlation, 
+                     colour = correlation)) +
+  geom_node_point(color = "#29e05d7a", size = 5) +
+  geom_node_text(aes(label = name), repel = TRUE) +
+  theme_void()
 
+word_cors %>%
+  filter( abs(correlation ) >= .25) %>%
+  graph_from_data_frame() %>%
+  ggraph(layout = "fr") +
+  geom_edge_link(aes(#edge_alpha = correlation, 
+                     edge_width = correlation, 
+                     colour = correlation)) +
+  geom_node_point(color = "#29e05d7a", size = 5) +
+  geom_node_text(aes(label = name), repel = TRUE) +
+  theme_void()
+
+Our_bigram_count[1:15,] %>% ggplot(aes(x = reorder(bigram,n) ,y = n))+
+  geom_point(color = "blue")+
+  geom_segment(
+    aes(x=bigram,xend=bigram,y=0,yend=n),color="skyblue3")+
+  theme(axis.text.y = element_text(angle = 30,size=8,hjust=1))+
+  coord_flip()+
+  xlab("")+
+  theme_light()+
+  labs(title = "Temas principales en las respuestas de los participantes",
+  subtitle = "Grafico de frecuencia por palabra, con bigramas",
+  y = "Cantidad")+
+  theme(plot.title = element_text( hjust = 0.5),
+        plot.subtitle = element_text( hjust = 0.5),
+        panel.grid.major.y = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank())
 ```
+
+Preguntar al profe: pase las correlaciones a valor absoluto para quitar las bajas correlacion
+
 
 Pendiente:
 
