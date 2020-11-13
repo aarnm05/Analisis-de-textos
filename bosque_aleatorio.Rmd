@@ -1,0 +1,358 @@
+---
+title: "Bosques_aleatorios"
+author: "Emir Rojas"
+date: "10/11/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r}
+library(dplyr)
+library(tidytext)
+library(hunspell)
+library(tidytext)
+library(stringr)
+library(ggplot2)
+suppressMessages(library(randomForest))
+library(tidyr)
+library(ggraph)
+library(igraph)
+library(flextable)
+
+entrenamiento = readxl::read_xlsx("codificacion.xlsx")
+dataset <-  suppressWarnings( foreign::read.spss("Actualidades_v5.sav",to.data.frame = T) )
+
+entrenamiento$Respuesta = str_replace_all(entrenamiento$Respuesta, "covid","corona virus")
+dataset$CN2 = str_replace_all(dataset$CN2,"covid","corona virus")
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidytext)
+library(hunspell)
+library(tidytext)
+library(stringr)
+library(ggplot2)
+library( tidyr)
+library(ggraph)
+library(igraph)
+library(flextable)
+#setwd("~/GitHub/Analisis-de-textos")
+
+hunspell::dictionary("costa/es_cr.dic")
+espa=dictionary("mex/es_MX.dic")
+costa = dictionary("costa/es_cr.dic")
+cast = dictionary("cast/es_ES.dic")
+
+custom_stop= data_frame(word = tm::stopwords("spanish"), #stopwords
+                                          lexicon = "custom") #el nombre que le vamos a poner
+#custom_stop = custom_stop[custom_stop$word!="no",]
+
+#adaptado del siguiente codigo 
+#https://stackoverflow.com/questions/56026550/how-to-use-hunspell-package-to-suggest-correct-words-in-a-column-in-r
+
+formato_flex <- function(tabla){
+  tabla %>% 
+    #autofit(add_h = 0.4) %>%#me ajusta el alto de todo, tambien haria el width, pero lo modificamos automaticamente 
+    theme_booktabs() %>% 
+    font(fontname= "Myriam Pro", part = "all") %>% 
+    fontsize(size= 12, part = "all") %>% 
+    fontsize(size = 13,i=1, part = "header") %>% 
+    bold(bold= TRUE, part="header") %>% 
+    align(align = "center", part = "all") %>% 
+    align(align = "left",j=1, part = "body") %>% 
+    align(align="justify",i=1, part = "header" ) %>% 
+    width(j= 1, width = 3) %>% 
+    width(j=-1, width = 1) %>% 
+    fix_border_issues
+}
+
+
+
+cleantext = function(x) {
+  for (i in 1:length(x)) {
+    bad = hunspell(x[i], dict = costa)[[1]]
+    good = unlist(hunspell_suggest(bad, dict = costa))[1]
+    
+    if (length(bad) > 0) {
+      x[i] = gsub(pattern = bad, replacement = good, x[i])
+      
+    }
+    
+  }
+  
+  x
+  
+  
+}
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+procesador_texto= function(x) {
+
+  dummy = data.frame(texto = x, id = 1:length(x)) 
+  # Stopwords--------------------
+  
+beta = dummy %>%
+    unnest_tokens(word, texto) %>%  #en este paso separamos las palabras individualmente
+    anti_join(custom_stop) 
+
+z = hunspell_stem(words = beta$word,dict = costa)
+
+vacios = which(lapply(z, length) == 0)
+
+   beta = beta[-vacios,] #las palabras divididas le quito los terminos no reconocidos #en este caso un numero
+   z = z[-vacios]
+   beta$lema = lapply(z, `[[`, 1) %>%
+     as.character()
+  
+   beta 
+   
+}
+
+```
+
+
+## procesamos el entrenamiento
+
+```{r message=FALSE, warning=FALSE}
+datos_ent = cleantext(entrenamiento$Respuesta)
+datos_ent2 = procesador_texto(datos_ent)
+
+lema_ent = datos_ent2 %>% 
+  group_by(id) %>% 
+  count(lema)
+
+entrenamiento1 = entrenamiento[entrenamiento$Respuesta!=99,]
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+matriz = cast_dtm(data = lema_ent,document = id,term = lema,value = n) %>% #los de entrenamiento
+  as.matrix() %>% 
+  as.data.frame()
+
+matriz$respuesta = entrenamiento1$Cod
+
+```
+
+
+```{r message=FALSE, warning=FALSE}
+matriz %>% 
+  group_by(respuesta) %>% 
+  summarise(Frecuencia = n()) %>% 
+  arrange(desc(Frecuencia))
+```
+
+**De aqui para abajo es el codigo intacto de Felipe**
+
+
+```{r message=FALSE, warning=FALSE}
+#codigo siguiente adapato de Evora
+
+chi.cuadrado <- function(datos, umbral, respuesta = "var_respuesta")
+  {
+  
+   num.col <- NULL
+     for (k in 1:dim(datos)[2]) 
+       {
+         
+         #datos[ , k] <- as.numeric(unlist(datos[ , k]))
+         
+         chi <- chisq.test(table(datos[ , respuesta], datos[ , k]), 
+                           simulate.p.value = TRUE)
+         
+            if(chi$p.value >= umbral) 
+              {
+              
+              num.col[k] <- k
+              
+              }
+       }
+   
+    datos[ , as.vector(na.omit(num.col))] <- NULL
+
+    print(paste("El total de palabras que quedan como predictoras después de eliminar las que tiene un p-value mayor a", umbral, "son",
+                dim(datos)[2]-1), sep = ",")
+    
+    return(datos)
+    
+ }
+tdm.chi <- chi.cuadrado(matriz, 0.8, "respuesta")
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+set.seed(12345678)
+
+muestra <- sample(1:nrow(matriz), size = floor(nrow(matriz)*0.80)) #el 80 es arbitrario
+
+entrenamiento.todo <- matriz[muestra , ]
+test.todo <- matriz[-muestra , ]
+
+entrenamiento.chi <- tdm.chi[muestra , ]
+test.chi <- tdm.chi[-muestra , ]
+```
+
+
+```{r message=FALSE, warning=FALSE}
+entrenamiento.todo$respuesta <- as.factor(entrenamiento.todo$respuesta)
+
+set.seed(1234)
+
+modRF = randomForest(respuesta ~ .,
+                 data = entrenamiento.todo,
+                 ntree = 50,
+                 replace = TRUE, 
+                 type = "classification")
+
+predictionRF <- predict(modRF, test.todo)
+
+niveles <- levels(as.factor(matriz$respuesta))
+
+MC <- table(factor(test.todo$respuesta, levels = niveles, ordered = TRUE), #matriz de confusion 
+                   factor(predictionRF, levels = niveles, ordered = TRUE))
+
+```
+
+```{r message=FALSE, warning=FALSE}
+precision.todo <- sum(diag(MC)) / sum(MC)
+
+paste("La precisión utilizando", 
+      dim(entrenamiento.todo)[2], "variables es de", 
+      scales::percent(precision.todo, accuracy = 0.1))
+```
+
+```{r message=FALSE, warning=FALSE}
+entrenamiento.chi$respuesta <- as.factor(entrenamiento.chi$respuesta)
+
+set.seed(1234)
+
+modRF = randomForest(respuesta ~ .,
+                 data = entrenamiento.chi,
+                 ntree = 50,
+                 replace = TRUE, 
+                 type = "classification")
+
+predictionRF <- predict(modRF, test.chi)
+
+MC <- table(factor(test.chi$respuesta, levels = niveles, ordered = TRUE), 
+                   factor(predictionRF, levels = niveles, ordered = TRUE))
+precision.chi <- sum(diag(MC)) / sum(MC)
+
+paste("La precisión utilizando", 
+      dim(entrenamiento.chi)[2], "variables es de", 
+      scales::percent(precision.chi, accuracy = 0.1))
+```
+
+
+```{r message=FALSE, warning=FALSE}
+prop.table(table(predictionRF))*100
+```
+
+
+
+## Hacer el match con las respuestas en la base de datos
+
+
+```{r message=FALSE, warning=FALSE}
+alt_datos = dataset %>% 
+  select(CONSECUTIVO,CN2) %>% 
+  mutate(CN2 = str_trim(dataset$CN2))
+
+alt_datos = alt_datos[alt_datos$CN2!="",]
+alt_datos = alt_datos[alt_datos$CN2!=9,] 
+alt_datos = alt_datos[alt_datos$CN2!=99,] 
+
+alt_datos$CN2 = cleantext(alt_datos$CN2)
+
+beta = alt_datos %>%
+    unnest_tokens(word, CN2) %>%  #en este paso separamos las palabras individualmente
+    anti_join(custom_stop) 
+
+z = hunspell_stem(words = beta$word,dict = costa)
+
+vacios = which(lapply(z, length) == 0)
+
+beta = beta[-vacios,]
+z = z[-vacios]
+
+beta$word = lapply(z, `[[`, 1) %>% #le caemos encima a las simples con las lematizadas
+  as.character()
+
+```
+
+
+```{r message=FALSE, warning=FALSE}
+todo_texto_alt = beta %>% 
+  group_by(CONSECUTIVO) %>% 
+  count(word)
+
+```
+### lo siguiente es adaptado
+
+```{r message=FALSE, warning=FALSE}
+matriz_todo_texto_ALT = cast_dtm(data = todo_texto_alt,document = CONSECUTIVO,term = word,value = n) %>% 
+  as.matrix() %>% 
+  as.data.frame()
+arbol = getTree(modRF,k = 50,labelVar = T)
+modRF$votes
+```
+
+```{r message=FALSE, warning=FALSE}
+predictionRF_todo_texto <- predict(modRF, matriz_todo_texto_ALT) #va en orden segun actualidades
+
+cat("Absoluto \n")
+
+absolutos = table(predictionRF_todo_texto) %>% as.data.frame()
+colnames(absolutos) = c("Categoría","Frecuencia")
+absolutos$Error =  round(modRF$confusion[,10]*100,1)
+
+absolutos %>% 
+  flextable() %>% 
+  add_header_lines(values= c("Frecuencia absoluta de las categorías, pregunta CN2")) %>% 
+  formato_flex() 
+
+
+cat("\n Relativo \n")
+
+relativo = round(prop.table(table(predictionRF_todo_texto))*100,1) %>% as.data.frame()
+colnames(relativo) = c("Categoria","Porcentaje")
+relativo$Error = round(modRF$confusion[,10]*100,1)
+
+relativo %>% 
+  flextable() %>% 
+  add_header_lines(values= c("Frecuencia relativa de las categorías, pregunta CN2")) %>% 
+  formato_flex() 
+
+
+```
+
+
+**Esta linea me permite posteriormente incorporar los valores categorizados a actualidades en caso de querer hacer ponderaciones**
+
+```{r}
+valores_categorizados = data.frame(CONSECUTIVO = unique(todo_texto_alt$CONSECUTIVO),categoria = predictionRF_todo_texto)
+```
+
+
+```{r}
+ala = left_join(dataset,valores_categorizados,by="CONSECUTIVO")
+table(ala$categoria)
+
+ala[1:10,] %>% 
+  select(CN2, categoria)%>%
+  kableExtra::kable(format = "html") %>% 
+  kableExtra::kable_styling(bootstrap_options = c("hover","condensed"))
+```
+
