@@ -1,12 +1,15 @@
 ---
 title: "R Notebook"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
 ---
 
-#cargar y preparar datos
-```{r}
+
+```{r warning=FALSE}
+set.seed(123)
+suppressMessages(library(randomForest))
 library(dplyr)
 library(tidytext)
 library(hunspell)
@@ -16,6 +19,7 @@ library(ggplot2)
 library( tidyr)
 library(ggraph)
 library(igraph)
+library(flextable)
 #setwd("~/GitHub/Analisis-de-textos")
 
 hunspell::dictionary("costa/es_cr.dic")
@@ -25,52 +29,57 @@ cast = dictionary("cast/es_ES.dic")
 
 custom_stop= data_frame(word = tm::stopwords("spanish"), #stopwords
                                           lexicon = "custom") #el nombre que le vamos a poner
-custom_stop = custom_stop[custom_stop$word!="no",]
+#custom_stop = custom_stop[custom_stop$word!="no",]
 
-dataset <-  suppressWarnings( foreign::read.spss("Actualidades.sav",to.data.frame = T) )
+dataset <-  suppressWarnings( foreign::read.spss("Actualidades_v5.sav",to.data.frame = T) )
 
 #adaptado del siguiente codigo 
 #https://stackoverflow.com/questions/56026550/how-to-use-hunspell-package-to-suggest-correct-words-in-a-column-in-r
 
+
 cleantext = function(x) {
-  
-  sapply(1:length(x), function(y) {
-    bad = hunspell(x[y], dict = costa)[[1]]
-    good = unlist(lapply(hunspell_suggest(bad,dict = costa), `[[`, 1))
+  for (i in 1:length(x)) {
+    bad = hunspell(x[i], dict = costa)[[1]]
+    good = unlist(hunspell_suggest(bad, dict = costa))[1]
     
-    if (length(bad)) {
-      for (i in 1:length(bad)) {
-        x[y] <<- gsub(bad[i], good[i], x[y])
-      }
+    if (length(bad) > 0) {
+      x[i] = gsub(pattern = bad, replacement = good, x[i])
+      
     }
-  })
+    
+  }
+  
   x
+  
+  
 }
+
 ```
 
-#Definimos nuestras funciones
 
-```{r}
+```{r warning=FALSE}
 procesador_texto= function(x) {
-  otro  = str_trim(x) #le quitamos los espacios de mas
-  otro = otro[otro != ""] #quitamos las variables vacias basicamente
-  otro1 = cleantext(otro)
-  
-  dummy = data.frame(texto = otro1, id = 1:length(otro1)) 
+
+  dummy = data.frame(texto = x, id = 1:length(x)) 
   # Stopwords--------------------
   
-  beta = dummy %>%
+beta = dummy %>%
     unnest_tokens(word, texto) %>%  #en este paso separamos las palabras individualmente
-    anti_join(custom_stop)   #elimina las palabras que coincidan dentro del registro de stopwords
+    anti_join(custom_stop) 
+
+z = hunspell_stem(words = beta$word,dict = costa)
+
+vacios = which(lapply(z, length) == 0)
+
+   beta = beta[-vacios,] #las palabras divididas le quito los terminos no reconocidos #en este caso un numero
+   z = z[-vacios]
+   beta$lema = lapply(z, `[[`, 1) %>%
+     as.character()
   
-  z = hunspell_stem(words = beta$word,dict = costa) #lematizacion
-  vacios = which(lapply(z, length) == 0)
-  beta = beta[-vacios,] #las palabras divididas le quito los terminos no reconocidos #en este caso un numero
-  z = z[-vacios]
-  beta$lema = lapply(z, `[[`, 1) %>% as.character()
-  
-  beta
+   beta 
+   
 }
+
 
 grafico_palabras = function(a,titulo,subtitulo){
   ggplot(data = a,aes(x = reorder(word,n) ,y = n))+
@@ -91,14 +100,42 @@ grafico_palabras = function(a,titulo,subtitulo){
         axis.ticks.y = element_blank())
 }
 
+formato_flex <- function(tabla){
+  tabla %>% 
+    #autofit(add_h = 0.4) %>%#me ajusta el alto de todo, tambien haria el width, pero lo modificamos automaticamente 
+    theme_booktabs() %>% 
+    font(fontname= "Myriam Pro", part = "all") %>% 
+    fontsize(size= 12, part = "all") %>% 
+    fontsize(size = 13,i=1, part = "header") %>% 
+    bold(bold= TRUE, part="header") %>% 
+    align(align = "center", part = "all") %>% 
+    align(align = "left",j=1, part = "body") %>% 
+    align(align="justify",i=1, part = "header" ) %>% 
+    width(j= 1, width = 3) %>% 
+    width(j=-1, width = 1) %>% 
+    fix_border_issues
+}
+
 ```
 
-Hago los gráficos aparte de la función porque para lematizar vamos a necesitar la lista de palabras
+# Unigramas
 
 #grafico 1
-```{r}
+```{r message=FALSE, warning=FALSE}
 
-texto_procesado = procesador_texto(dataset$PR10B)
+datos1 = str_trim(dataset$CN2) #le quitamos los espacios de mas
+datos1 = datos1[datos1!= ""] #quitamos las variables vacias basicamente
+datos1 = datos1[datos1!="99"]
+datos1 = datos1[datos1!="9"]
+
+datos2 = cleantext(datos1)
+
+texto_procesado = procesador_texto(datos2)
+
+frec_word = texto_procesado %>% 
+  count(word,sort = T )
+
+frec_word$id = 1:length(frec_word)
 
 frec_lema = texto_procesado %>% 
   count(lema,sort = T )
@@ -106,12 +143,32 @@ frec_lema = texto_procesado %>%
 colnames(frec_lema) = c("word","n")
 
 frec_lema15 = frec_lema[1:15,]
+
 grafico_palabras(frec_lema15,"Temas principales en las respuestas de los participantes","Grafico de frecuencia por palabra, lematizado")
+
+colnames(frec_lema15) = c("Palabra","Cantidad")
+
+frec_lema15 %>% 
+  flextable() %>% 
+  add_header_lines(values= c("Frecuencia absoluta de las primeras 15 palabras lematizadas, pregunta CN2")) %>% 
+  formato_flex() 
+
+total_lema = sum(frec_lema$n)
+porc_15 = round(frec_lema15$Cantidad/total_lema*100,1) #notese que lo estamos haciendo respecto al total de lemas, no de individuos
+porc_lema_15 = data.frame("Palabra"=frec_lema15$Palabra, "Porcentaje"=porc_15 )
+
+porc_lema_15 %>% 
+  flextable() %>% 
+  add_header_lines(values= c("Frecuencia relativa de las primeras 15 palabras lematizadas, pregunta CN2")) %>% 
+  formato_flex() 
+
 
 ```
 
 
-#Matriz palabra conteo
+
+
+# Bigramas
 
 ```{r}
 lema_bigrama = aggregate(lema~id, data = texto_procesado,paste, collapse=" ") #oraciones sin stopwords y con gramatica corregida
@@ -147,6 +204,44 @@ word_cors <- lema_bigrama %>%
 
 ```
 
+### Bigramas
+```{r}
+graf_bigrama = Our_bigram_count[1:15,]
+colnames(graf_bigrama) = c("word","n")
+grafico_palabras(a = graf_bigrama,
+                 titulo = "Temas principales en las respuestas de los participantes",
+                 subtitulo = "Grafico de frecuencia por palabra, con bigramas")
+
+
+
+total_bigrama = sum(Our_bigram_count$n)
+
+porc_15_b = round(graf_bigrama$n/total_bigrama*100,1) #notese que lo estamos haciendo respecto al total de lemas, no de individuos
+
+
+porc_bigrama_15 = data.frame("Palabra"=graf_bigrama$word, "Porcentaje"=porc_15_b)
+
+colnames(graf_bigrama) = c("Palabra","Cantidad")
+
+graf_bigrama %>% 
+  flextable() %>% 
+  add_header_lines(values= c("Frecuencia absoluta de los primeras 15 bigramas lematizados, pregunta CN2")) %>% 
+  formato_flex() 
+
+porc_bigrama_15 %>% 
+  flextable() %>% 
+  add_header_lines(values= c("Frecuencia relativa de los primeras 15 bigramas lematizados, pregunta CN2")) %>% 
+  formato_flex() 
+
+```
+
+
+
+
+
+
+
+### Correlaciones
 
 ```{r graficos bigramas}
 
@@ -177,17 +272,4 @@ word_cors %>%
   geom_node_text(aes(label = name), repel = TRUE) +
   theme_void()
 
-graf_bigrama = Our_bigram_count[1:15,]
-colnames(graf_bigrama) = c("word","n")
-grafico_palabras(a = graf_bigrama,
-                 titulo = "Temas principales en las respuestas de los participantes",
-                 subtitulo = "Grafico de frecuencia por palabra, con bigramas")
-
 ```
-
-Preguntar al profe: pase las correlaciones a valor absoluto para quitar las bajas correlacion
-
-
-Bibliografia:
-https://www.tidytextmining.com/ngrams.html
-citar la tesis de felipe
